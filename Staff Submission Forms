@@ -1,0 +1,433 @@
+import { useState } from 'react'
+import Layout from '../../components/Layout'
+import { submitFieldTripRequest, sendNotificationEmail } from '../../lib/supabase'
+import { Calendar, DollarSign, Users, MapPin, BookOpen, AlertCircle, CheckCircle } from 'lucide-react'
+
+export default function SubmitRequest() {
+  const [formData, setFormData] = useState({
+    staff_name: '',
+    staff_email: '',
+    facilitator_name: '',
+    facilitator_email: '',
+    phone_number: '',
+    trip_type: '',
+    student_count: '',
+    trip_location: '',
+    educational_value: '',
+    preferred_date_1: '',
+    preferred_date_2: '',
+    preferred_date_3: '',
+    bus_fee: '',
+    fuel_fee: '',
+    entrance_fee: '',
+    activity_fee: '',
+    lunch_fee: '',
+    apparel_fee: '',
+    other_fee: ''
+  })
+  
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null)
+  const [totalCost, setTotalCost] = useState(0)
+
+  const tripTypes = [
+    'ELA', 'EC', 'SBS', 'Math', 'Social Studies', 'Science', 'IB', 'CTE',
+    'CTE - PLTW', 'CTE - Business', 'Robotics', 'Spanish', 'French', 'P.E',
+    'Health', 'Dance', 'Art', 'Band', 'Orchestra', 'Sports', 'Clubs',
+    '6th grade', '7th grade', '8th grade'
+  ]
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    
+    // Calculate total cost when cost fields change
+    if (name.includes('_fee')) {
+      calculateTotalCost({ ...formData, [name]: value })
+    }
+  }
+
+  const calculateTotalCost = (data = formData) => {
+    const costs = [
+      data.bus_fee, data.fuel_fee, data.entrance_fee,
+      data.activity_fee, data.lunch_fee, data.apparel_fee, data.other_fee
+    ]
+    const total = costs.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0)
+    setTotalCost(total)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setSubmitStatus(null)
+
+    try {
+      // Prepare request data
+      const requestData = {
+        ...formData,
+        staff_email: formData.staff_email.includes('@') ? formData.staff_email : `${formData.staff_email}@cms.k12.nc.us`,
+        facilitator_email: formData.facilitator_email.includes('@') ? formData.facilitator_email : `${formData.facilitator_email}@cms.k12.nc.us`,
+        student_count: parseInt(formData.student_count),
+        total_cost: totalCost,
+        submission_date: new Date().toISOString().split('T')[0]
+      }
+
+      const result = await submitFieldTripRequest(requestData)
+      
+      if (result.success) {
+        setSubmitStatus({
+          type: 'success',
+          message: `Request ${result.tripId} submitted successfully! You will receive email updates as it progresses through approval.`
+        })
+        
+        // Send notification email
+        await sendNotificationEmail({
+          to: requestData.staff_email,
+          subject: `JMA Field Trip Request Submitted - ${result.tripId}`,
+          template: 'request_submitted',
+          data: {
+            tripId: result.tripId,
+            staffName: requestData.staff_name,
+            tripLocation: requestData.trip_location,
+            submissionDate: new Date().toLocaleDateString()
+          }
+        })
+        
+        // Reset form
+        setFormData({
+          staff_name: '',
+          staff_email: '',
+          facilitator_name: '',
+          facilitator_email: '',
+          phone_number: '',
+          trip_type: '',
+          student_count: '',
+          trip_location: '',
+          educational_value: '',
+          preferred_date_1: '',
+          preferred_date_2: '',
+          preferred_date_3: '',
+          bus_fee: '',
+          fuel_fee: '',
+          entrance_fee: '',
+          activity_fee: '',
+          lunch_fee: '',
+          apparel_fee: '',
+          other_fee: ''
+        })
+        setTotalCost(0)
+        
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Submission error:', error)
+      setSubmitStatus({
+        type: 'error',
+        message: `Error submitting request: ${error.message}`
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Layout title="Submit Field Trip Request - JMA">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4">🛸</div>
+          <h1 className="text-4xl font-bold text-white mb-4">
+            Field Trip Pre-Approval Form
+          </h1>
+          <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+            Thank you for using our JMA Field Trip Management System. Please complete the following form completely. 
+            Once you complete this form it will begin processing your field trip approval process.
+          </p>
+        </div>
+
+        {/* Status Messages */}
+        {submitStatus && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            submitStatus.type === 'success' 
+              ? 'bg-green-900/20 border-green-500 text-green-300' 
+              : 'bg-red-900/20 border-red-500 text-red-300'
+          }`}>
+            <div className="flex items-center space-x-2">
+              {submitStatus.type === 'success' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+              <span>{submitStatus.message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Staff Information */}
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+              <Users className="w-5 h-5 mr-2 text-jma-blue" />
+              Staff Information
+            </h2>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Staff Name *
+                </label>
+                <input
+                  type="text"
+                  name="staff_name"
+                  value={formData.staff_name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  placeholder="Enter your full name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  CMS Email *
+                </label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    name="staff_email"
+                    value={formData.staff_email}
+                    onChange={handleInputChange}
+                    required
+                    className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                    placeholder="username"
+                  />
+                  <span className="px-4 py-3 bg-slate-700 border border-slate-600 border-l-0 rounded-r-lg text-slate-300">
+                    @cms.k12.nc.us
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Department Chair/Facilitator Name *
+                </label>
+                <input
+                  type="text"
+                  name="facilitator_name"
+                  value={formData.facilitator_name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  placeholder="Enter facilitator name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Facilitator Email *
+                </label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    name="facilitator_email"
+                    value={formData.facilitator_email}
+                    onChange={handleInputChange}
+                    required
+                    className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                    placeholder="username"
+                  />
+                  <span className="px-4 py-3 bg-slate-700 border border-slate-600 border-l-0 rounded-r-lg text-slate-300">
+                    @cms.k12.nc.us
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  placeholder="(704) 555-0123"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Trip Information */}
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+              <MapPin className="w-5 h-5 mr-2 text-jma-blue" />
+              Trip Information
+            </h2>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Field Trip Type *
+                </label>
+                <select
+                  name="trip_type"
+                  value={formData.trip_type}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                >
+                  <option value="">Select Type</option>
+                  {tripTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Number of Students *
+                </label>
+                <input
+                  type="number"
+                  name="student_count"
+                  value={formData.student_count}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  placeholder="Enter number of students"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Field Trip Location *
+                </label>
+                <input
+                  type="text"
+                  name="trip_location"
+                  value={formData.trip_location}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  placeholder="Museum, Park, etc."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Educational Value */}
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+              <BookOpen className="w-5 h-5 mr-2 text-jma-blue" />
+              Educational Value
+            </h2>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Briefly explain the educational value of this trip and how it relates to student learning *
+              </label>
+              <textarea
+                name="educational_value"
+                value={formData.educational_value}
+                onChange={handleInputChange}
+                required
+                rows={4}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                placeholder="Explain how this trip supports curriculum objectives and enhances student learning..."
+              />
+            </div>
+          </div>
+
+          {/* Preferred Dates */}
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+              <Calendar className="w-5 h-5 mr-2 text-jma-blue" />
+              Preferred Dates
+            </h2>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">
+                You are only required to list one date, however if that date is unavailable and you do not list additional options, your trip will be denied.
+              </p>
+              
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Option #1 (Required) *
+                  </label>
+                  <input
+                    type="date"
+                    name="preferred_date_1"
+                    value={formData.preferred_date_1}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Option #2
+                  </label>
+                  <input
+                    type="date"
+                    name="preferred_date_2"
+                    value={formData.preferred_date_2}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Option #3
+                  </label>
+                  <input
+                    type="date"
+                    name="preferred_date_3"
+                    value={formData.preferred_date_3}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-jma-blue focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cost Breakdown */}
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+              <DollarSign className="w-5 h-5 mr-2 text-jma-blue" />
+              Cost Breakdown
+            </h2>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { name: 'bus_fee', label: 'Bus Fee' },
+                { name: 'fuel_fee', label: 'Fuel Fee' },
+                { name: 'entrance_fee', label: 'Entrance Fee' },
+                { name: 'activity_fee', label: 'Activity Fee' },
+                { name: 'lunch_fee', label: 'Lunch Fee' },
+                { name: 'apparel_fee', label: 'Apparel Fee' },
+                { name: 'other_fee', label: 'Other Fee' }
+              ].map(field => (
+                <div key={field.name}>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    {field.label} ($)
+                  </label>
+                  <input
+                    type="number"
+                    name={field.name}
+                    value={formData[field.name]}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate
