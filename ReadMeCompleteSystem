@@ -1,0 +1,114 @@
+# 🚀 JMA Field Trip Management System
+
+A comprehensive, FERPA-compliant field trip management system built specifically for JMA Middle School and Charlotte-Mecklenburg Schools.
+
+**One Mission, Many Places & Endless Possibilities**
+
+## ✨ Features
+
+- **7-Stage Approval Workflow** - Streamlined approval from staff to cafeteria
+- **Real-time Email Notifications** - Automated alerts at 7:00 AM and 12:00 PM daily  
+- **Admin Notes System** - Complete communication tracking throughout approval
+- **Report Generation** - Comprehensive trip reports, volunteer lists, health info
+- **Mobile Responsive** - Works perfectly on any device
+- **FERPA Compliant** - Secure handling of all student and staff data
+- **Role-Based Access** - 8 different user roles with appropriate permissions
+- **Cost-Free Forever** - Built on free tier services with no ongoing costs
+
+## 🚀 Quick Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/jma-field-trip-system&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,RESEND_API_KEY&envDescription=Required%20environment%20variables&envLink=https://github.com/your-username/jma-field-trip-system#environment-variables)
+
+## 🛠️ Manual Setup
+
+### Prerequisites
+
+- Node.js 18+ 
+- [Supabase account](https://supabase.com) (free)
+- [Vercel account](https://vercel.com) (free) 
+- [Resend account](https://resend.com) (free)
+- [GitHub account](https://github.com) (free)
+
+### Step 1: Clone Repository
+
+```bash
+git clone https://github.com/your-username/jma-field-trip-system.git
+cd jma-field-trip-system
+npm install
+```
+
+### Step 2: Database Setup
+
+1. **Create Supabase Project**
+   - Go to [supabase.com](https://supabase.com)
+   - Click "New Project"
+   - Name: "JMA Field Trips"
+   - Choose region closest to North Carolina
+
+2. **Run Database Script**
+   - Go to Supabase → SQL Editor
+   - Copy contents of `supabase/setup.sql`
+   - Paste and click "Run"
+
+3. **Get API Keys**
+   - Go to Settings → API
+   - Copy "Project URL" and "anon public" key
+
+### Step 3: Environment Variables
+
+Create `.env.local` file:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+RESEND_API_KEY=your_resend_api_key
+
+# Optional customization
+NEXT_PUBLIC_SCHOOL_NAME="JMA Middle School"
+NEXT_PUBLIC_SCHOOL_DOMAIN="cms.k12.nc.us"
+NEXT_PUBLIC_PRINCIPAL_NAME="Principal Hager"
+```
+
+### Step 4: Email Setup
+
+1. **Get Resend API Key**
+   - Go to [resend.com](https://resend.com)
+   - Create account → API Keys → Create
+   - Copy the key to your `.env.local`
+
+### Step 5: Development
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+### Step 6: Deploy to Production
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Initial JMA Field Trip System"
+   git push origin main
+   ```
+
+2. **Deploy to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Import GitHub repository
+   - Add environment variables
+   - Deploy!
+
+## 📱 User Roles & Access
+
+### Staff Members
+- Submit pre-approval forms
+- Track request status
+- View own requests only
+
+### Front Office Administrators  
+- Review calendar availability
+- Approve/deny date requests
+- Manage master school calendar
+
+### Principal & Assistant Principals
