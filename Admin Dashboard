@@ -1,0 +1,421 @@
+import { useState, useEffect } from 'react'
+import Layout from '../../components/Layout'
+import { getFieldTripRequests, updateApprovalStage, addAdminNote, getAdminNotes } from '../../lib/supabase'
+import { Calendar, Users, Clock, CheckCircle, XCircle, MessageSquare, Eye, FileText } from 'lucide-react'
+
+export default function AdminDashboard() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [noteText, setNoteText] = useState('')
+  const [noteType, setNoteType] = useState('comment')
+  const [adminNotes, setAdminNotes] = useState([])
+  const [filter, setFilter] = useState('all')
+
+  useEffect(() => {
+    loadRequests()
+  }, [])
+
+  const loadRequests = async () => {
+    setLoading(true)
+    const result = await getFieldTripRequests()
+    if (result.success) {
+      setRequests(result.data)
+    }
+    setLoading(false)
+  }
+
+  const loadAdminNotes = async (requestId) => {
+    const result = await getAdminNotes(requestId)
+    if (result.success) {
+      setAdminNotes(result.data)
+    }
+  }
+
+  const handleApproval = async (requestId, stageNumber, action) => {
+    const updates = {
+      status: action,
+      approved_by: 'Admin User', // In real app, get from auth context
+      notes: action === 'denied' ? 'Denied by administrator' : 'Approved by administrator'
+    }
+
+    const result = await updateApprovalStage(requestId, stageNumber, updates)
+    if (result.success) {
+      await loadRequests()
+      alert(`Request ${action} successfully!`)
+    }
+  }
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !selectedRequest) return
+
+    const result = await addAdminNote(selectedRequest.id, {
+      type: noteType,
+      content: noteText,
+      author: 'Admin User' // In real app, get from auth context
+    })
+
+    if (result.success) {
+      setNoteText('')
+      await loadAdminNotes(selectedRequest.id)
+      alert('Note added successfully!')
+    }
+  }
+
+  const filteredRequests = requests.filter(request => {
+    if (filter === 'all') return true
+    if (filter === 'pending') return request.status === 'pending'
+    if (filter === 'approved') return request.status === 'approved'
+    if (filter === 'submitted') return request.status === 'submitted'
+    return true
+  })
+
+  const stats = {
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    submitted: requests.filter(r => r.status === 'submitted').length
+  }
+
+  if (loading) {
+    return (
+      <Layout title="Admin Dashboard - JMA">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-jma-blue"></div>
+        </div>
+      </Layout>
+    )
+  }
+
+  return (
+    <Layout title="Admin Dashboard - JMA">
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <div className="text-5xl mb-4">👨‍💼</div>
+          <h1 className="text-4xl font-bold text-white mb-4">Admin Dashboard</h1>
+          <p className="text-lg text-slate-300">
+            Manage and review all field trip requests for JMA Middle School
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid md:grid-cols-4 gap-6">
+          <StatCard
+            icon={<FileText className="w-8 h-8" />}
+            title="Total Requests"
+            value={stats.total}
+            color="blue"
+          />
+          <StatCard
+            icon={<Clock className="w-8 h-8" />}
+            title="Pending Review"
+            value={stats.pending}
+            color="yellow"
+          />
+          <StatCard
+            icon={<CheckCircle className="w-8 h-8" />}
+            title="Approved"
+            value={stats.approved}
+            color="green"
+          />
+          <StatCard
+            icon={<Users className="w-8 h-8" />}
+            title="Submitted"
+            value={stats.submitted}
+            color="purple"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'all', label: 'All Requests' },
+            { key: 'submitted', label: 'Submitted' },
+            { key: 'pending', label: 'Pending' },
+            { key: 'approved', label: 'Approved' }
+          ].map(filterOption => (
+            <button
+              key={filterOption.key}
+              onClick={() => setFilter(filterOption.key)}
+              className={`px-4 py-2 rounded-full font-medium transition-all duration-200 ${
+                filter === filterOption.key
+                  ? 'bg-jma-blue text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {filterOption.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Requests List */}
+        <div className="space-y-4">
+          {filteredRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">📭</div>
+              <p className="text-xl text-slate-400">No requests found for the selected filter.</p>
+            </div>
+          ) : (
+            filteredRequests.map(request => (
+              <RequestCard
+                key={request.id}
+                request={request}
+                onApproval={handleApproval}
+                onViewDetails={(req) => {
+                  setSelectedRequest(req)
+                  loadAdminNotes(req.id)
+                }}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Request Details Modal */}
+        {selectedRequest && (
+          <RequestDetailsModal
+            request={selectedRequest}
+            adminNotes={adminNotes}
+            noteText={noteText}
+            setNoteText={setNoteText}
+            noteType={noteType}
+            setNoteType={setNoteType}
+            onAddNote={handleAddNote}
+            onClose={() => {
+              setSelectedRequest(null)
+              setAdminNotes([])
+              setNoteText('')
+            }}
+          />
+        )}
+      </div>
+    </Layout>
+  )
+}
+
+function StatCard({ icon, title, value, color }) {
+  const colorClasses = {
+    blue: 'border-blue-500 bg-blue-500/10',
+    yellow: 'border-yellow-500 bg-yellow-500/10',
+    green: 'border-green-500 bg-green-500/10',
+    purple: 'border-purple-500 bg-purple-500/10'
+  }
+
+  return (
+    <div className={`p-6 rounded-xl border ${colorClasses[color]} backdrop-blur-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-slate-400 text-sm font-medium">{title}</p>
+          <p className="text-3xl font-bold text-white mt-2">{value}</p>
+        </div>
+        <div className="text-slate-400">
+          {icon}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RequestCard({ request, onApproval, onViewDetails }) {
+  const getStatusColor = (status) => {
+    const colors = {
+      submitted: 'bg-blue-100 text-blue-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-green-100 text-green-800',
+      denied: 'bg-red-100 text-red-800'
+    }
+    return colors[status] || colors.pending
+  }
+
+  const currentStage = request.approval_stages?.find(stage => stage.stage_number === request.current_step)
+
+  return (
+    <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-xl font-semibold text-white">
+              {request.trip_id || `JMA-${request.id?.slice(-6)}`}
+            </h3>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+              {request.status?.toUpperCase()}
+            </span>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-slate-400">Staff:</span>
+              <span className="text-white ml-2">{request.staff_name}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">Location:</span>
+              <span className="text-white ml-2">{request.trip_location}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">Students:</span>
+              <span className="text-white ml-2">{request.student_count}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">Cost:</span>
+              <span className="text-white ml-2">${request.total_cost || 0}</span>
+            </div>
+          </div>
+          
+          <div className="mt-3 flex items-center text-sm">
+            <span className="text-slate-400">Current Stage:</span>
+            <span className="text-jma-blue ml-2">
+              Step {request.current_step}/7 - {currentStage?.stage_name || 'Unknown'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onViewDetails(request)}
+            className="flex items-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+            <span>View Details</span>
+          </button>
+          
+          {request.status === 'pending' && (
+            <>
+              <button
+                onClick={() => onApproval(request.id, request.current_step, 'approved')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Approve</span>
+              </button>
+              
+              <button
+                onClick={() => onApproval(request.id, request.current_step, 'denied')}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Deny</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RequestDetailsModal({ request, adminNotes, noteText, setNoteText, noteType, setNoteType, onAddNote, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-slate-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white">
+              Request Details - {request.trip_id || `JMA-${request.id?.slice(-6)}`}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Request Information */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">Trip Information</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="text-slate-400">Location:</span> <span className="text-white">{request.trip_location}</span></div>
+                <div><span className="text-slate-400">Type:</span> <span className="text-white">{request.trip_type}</span></div>
+                <div><span className="text-slate-400">Students:</span> <span className="text-white">{request.student_count}</span></div>
+                <div><span className="text-slate-400">Cost:</span> <span className="text-white">${request.total_cost || 0}</span></div>
+                <div><span className="text-slate-400">Preferred Date:</span> <span className="text-white">{request.preferred_date_1}</span></div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">Staff Information</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="text-slate-400">Staff:</span> <span className="text-white">{request.staff_name}</span></div>
+                <div><span className="text-slate-400">Email:</span> <span className="text-white">{request.staff_email}</span></div>
+                <div><span className="text-slate-400">Phone:</span> <span className="text-white">{request.phone_number}</span></div>
+                <div><span className="text-slate-400">Facilitator:</span> <span className="text-white">{request.facilitator_name}</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Educational Value */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">Educational Value</h3>
+            <p className="text-slate-300 text-sm bg-slate-900/50 p-4 rounded-lg">
+              {request.educational_value}
+            </p>
+          </div>
+
+          {/* Admin Notes */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4">Admin Notes</h3>
+            
+            {/* Add Note Form */}
+            <div className="mb-4 p-4 bg-slate-900/50 rounded-lg">
+              <div className="grid md:grid-cols-3 gap-4 mb-3">
+                <select
+                  value={noteType}
+                  onChange={(e) => setNoteType(e.target.value)}
+                  className="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
+                >
+                  <option value="comment">Comment</option>
+                  <option value="question">Question</option>
+                  <option value="concern">Concern</option>
+                  <option value="modification">Modification Required</option>
+                </select>
+              </div>
+              
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Add a note, question, or comment..."
+                rows={3}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 mb-3"
+              />
+              
+              <button
+                onClick={onAddNote}
+                className="flex items-center space-x-2 px-4 py-2 bg-jma-blue hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Add Note</span>
+              </button>
+            </div>
+
+            {/* Notes List */}
+            <div className="space-y-3">
+              {adminNotes.length === 0 ? (
+                <p className="text-slate-400 text-center py-4">No admin notes yet.</p>
+              ) : (
+                adminNotes.map((note, index) => (
+                  <div key={index} className="p-4 bg-slate-900/30 rounded-lg border-l-4 border-jma-blue">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-jma-blue font-medium">{note.author}</span>
+                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">
+                          {note.note_type}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400">
+                        {new Date(note.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-slate-300 text-sm">{note.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
