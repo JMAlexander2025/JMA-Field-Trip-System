@@ -1,0 +1,52 @@
+{
+  "name": "jma-field-trip-system",
+  "version": "1.0.0",
+  "description": "Complete field trip management system for JMA Middle School - One Mission, Many Places & Endless Possibilities",
+  "private": false,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "@supabase/auth-helpers-nextjs": "^0.8.0",
+    "resend": "^2.0.0",
+    "date-fns": "^2.30.0",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.292.0",
+    "@headlessui/react": "^1.7.17"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.52.0",
+    "eslint-config-next": "14.0.0",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "@tailwindcss/forms": "^0.5.7"
+  },
+  "keywords": [
+    "field-trip",
+    "school-management",
+    "jma",
+    "education",
+    "workflow",
+    "approval-system",
+    "cms",
+    "charlotte-mecklenburg"
+  ],
+  "author": "JMA Middle School",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/jma-field-trip-system.git"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/jma-field-trip-system#readme",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/jma-field-trip-system/issues"
+  }
+}
