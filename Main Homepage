@@ -1,0 +1,234 @@
+import Layout from '../components/Layout'
+import Link from 'next/link'
+import { Calendar, Users, FileText, BarChart3, Clock, Shield, Smartphone, Zap } from 'lucide-react'
+
+export default function Home() {
+  return (
+    <Layout>
+      <div className="text-center space-y-12">
+        {/* Hero Section */}
+        <div className="space-y-6">
+          <div className="text-6xl mb-4">🚀</div>
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-jma-blue to-jma-purple bg-clip-text text-transparent">
+            JMA Field Trip Management
+          </h1>
+          <p className="text-2xl text-jma-blue font-semibold">
+            One Mission, Many Places & Endless Possibilities
+          </p>
+          <p className="text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
+            Streamline your field trip approval process with our comprehensive management system. 
+            From initial requests to final approvals, we've automated the entire workflow for JMA Middle School.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+            <Link href="/staff/submit" className="bg-gradient-to-r from-jma-blue to-jma-purple hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+              Submit Field Trip Request
+            </Link>
+            <Link href="/admin/dashboard" className="border-2 border-jma-blue text-jma-blue hover:bg-jma-blue hover:text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300">
+              Admin Dashboard
+            </Link>
+          </div>
+        </div>
+
+        {/* Quick Access Cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+          <FeatureCard
+            icon={<FileText className="w-8 h-8" />}
+            title="Submit Request"
+            description="Staff can easily submit field trip pre-approval forms with all required details"
+            href="/staff/submit"
+            color="blue"
+          />
+          
+          <FeatureCard
+            icon={<Users className="w-8 h-8" />}
+            title="Admin Dashboard"
+            description="Review, approve, and manage all field trip requests in one place"
+            href="/admin/dashboard"
+            color="green"
+          />
+          
+          <FeatureCard
+            icon={<Calendar className="w-8 h-8" />}
+            title="Approval Workflow"
+            description="Track requests through our comprehensive 7-stage approval process"
+            href="/workflow"
+            color="purple"
+          />
+          
+          <FeatureCard
+            icon={<BarChart3 className="w-8 h-8" />}
+            title="Reports & Analytics"
+            description="Generate detailed reports for trips, volunteers, health info, and more"
+            href="/reports"
+            color="orange"
+          />
+        </div>
+
+        {/* System Features */}
+        <div className="mt-20 p-8 bg-slate-800/50 rounded-2xl border border-slate-700 backdrop-blur-sm">
+          <h2 className="text-3xl font-bold text-white mb-8">Complete System Features</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureHighlight
+              icon={<Zap className="w-6 h-6" />}
+              title="7-Stage Workflow"
+              description="Automated approval process from staff to cafeteria"
+            />
+            <FeatureHighlight
+              icon={<Clock className="w-6 h-6" />}
+              title="Real-Time Alerts"
+              description="Email notifications at 7:00 AM and 12:00 PM daily"
+            />
+            <FeatureHighlight
+              icon={<Shield className="w-6 h-6" />}
+              title="FERPA Compliant"
+              description="Secure handling of all student and staff data"
+            />
+            <FeatureHighlight
+              icon={<Smartphone className="w-6 h-6" />}
+              title="Mobile Ready"
+              description="Works perfectly on phones, tablets, and computers"
+            />
+          </div>
+        </div>
+
+        {/* Approval Workflow Preview */}
+        <div className="mt-20 text-left">
+          <h2 className="text-3xl font-bold text-center text-white mb-12">7-Stage Approval Process</h2>
+          <div className="grid lg:grid-cols-2 gap-8">
+            <WorkflowStep
+              number={1}
+              title="Staff Submission"
+              description="Teachers submit pre-approval forms with trip details, educational value, and cost estimates"
+              role="Staff Member"
+            />
+            <WorkflowStep
+              number={2}
+              title="Front Office Review"
+              description="Front office administrators verify master calendar availability and hold dates"
+              role="Front Office"
+            />
+            <WorkflowStep
+              number={3}
+              title="Principal Approval"
+              description="Principal and assistant principals review educational merit and authorize the trip"
+              role="Administrative Team"
+            />
+            <WorkflowStep
+              number={4}
+              title="Facilitator Coordination"
+              description="Department facilitators handle logistics, volunteers, and detailed planning"
+              role="Department Facilitator"
+            />
+            <WorkflowStep
+              number={5}
+              title="Financial Review"
+              description="Treasurer processes budget, payment options, and Educational Journey integration"
+              role="School Treasurer"
+            />
+            <WorkflowStep
+              number={6}
+              title="Health & Safety"
+              description="School nurse reviews student health information and medical requirements"
+              role="School Nurse"
+            />
+            <WorkflowStep
+              number={7}
+              title="Meal Planning"
+              description="Cafeteria manager coordinates lunch options and dietary accommodations"
+              role="Cafeteria Manager"
+              isLast={true}
+            />
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div className="mt-20 grid md:grid-cols-4 gap-6">
+          <StatCard number="$0" label="Monthly Cost" subtext="Free Forever" />
+          <StatCard number="7" label="Approval Stages" subtext="Comprehensive Review" />
+          <StatCard number="24/7" label="System Access" subtext="Always Available" />
+          <StatCard number="100%" label="FERPA Safe" subtext="Secure & Compliant" />
+        </div>
+
+        {/* Call to Action */}
+        <div className="mt-20 p-10 bg-gradient-to-r from-jma-blue/10 to-jma-purple/10 rounded-2xl border border-jma-blue/20">
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to Get Started?</h2>
+          <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
+            Join JMA Middle School in streamlining field trip management. Submit your first request or access the admin dashboard to begin.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/staff/submit" className="bg-gradient-to-r from-jma-blue to-jma-purple hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+              Submit Your First Request
+            </Link>
+            <Link href="/docs" className="text-jma-blue hover:text-white border border-jma-blue hover:bg-jma-blue px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300">
+              View Documentation
+            </Link>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  )
+}
+
+function FeatureCard({ icon, title, description, href, color }) {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+    green: 'from-green-500 to-green-600 hover:from-green-600 hover:to-green-700',
+    purple: 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700',
+    orange: 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700',
+  }
+
+  return (
+    <Link href={href}>
+      <div className={`p-6 rounded-xl bg-gradient-to-br ${colorClasses[color]} transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-2xl group`}>
+        <div className="text-white mb-4 group-hover:scale-110 transition-transform duration-300">
+          {icon}
+        </div>
+        <h3 className="text-xl font-semibold text-white mb-3">{title}</h3>
+        <p className="text-white/90 text-sm leading-relaxed">{description}</p>
+      </div>
+    </Link>
+  )
+}
+
+function FeatureHighlight({ icon, title, description }) {
+  return (
+    <div className="text-center space-y-3">
+      <div className="text-jma-blue mx-auto w-fit p-3 bg-jma-blue/10 rounded-full">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      <p className="text-slate-400 text-sm">{description}</p>
+    </div>
+  )
+}
+
+function WorkflowStep({ number, title, description, role, isLast = false }) {
+  return (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div className="w-10 h-10 bg-gradient-to-r from-jma-blue to-jma-purple rounded-full flex items-center justify-center text-white font-bold text-lg">
+          {number}
+        </div>
+        {!isLast && <div className="w-0.5 h-16 bg-gradient-to-b from-jma-blue to-jma-purple mt-2"></div>}
+      </div>
+      <div className="flex-1 pb-8">
+        <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
+        <p className="text-slate-300 mb-3">{description}</p>
+        <span className="text-sm text-jma-blue font-medium bg-jma-blue/10 px-3 py-1 rounded-full">
+          {role}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ number, label, subtext }) {
+  return (
+    <div className="text-center p-6 bg-slate-800/50 rounded-xl border border-slate-700 backdrop-blur-sm">
+      <div className="text-3xl font-bold text-jma-blue mb-2">{number}</div>
+      <div className="text-lg font-semibold text-white mb-1">{label}</div>
+      <div className="text-sm text-slate-400">{subtext}</div>
+    </div>
+  )
+}
