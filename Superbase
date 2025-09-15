@@ -1,0 +1,26 @@
+# Supabase Configuration
+# Get these from your Supabase project settings > API
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Email Configuration (Resend)
+# Get this from resend.com > API Keys
+RESEND_API_KEY=re_your_resend_api_key_here
+
+# App Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SCHOOL_NAME="JMA Middle School"
+NEXT_PUBLIC_SCHOOL_DOMAIN="cms.k12.nc.us"
+NEXT_PUBLIC_PRINCIPAL_NAME="Principal Hager"
+NEXT_PUBLIC_ASSISTANT_PRINCIPAL_1="Assistant Principal Cafero"
+NEXT_PUBLIC_ASSISTANT_PRINCIPAL_2="Assistant Principal Love"
+
+# Email Alert Times (24-hour format)
+NEXT_PUBLIC_ALERT_TIME_1="07:00"
+NEXT_PUBLIC_ALERT_TIME_2="12:00"
+
+# System Settings
+NEXT_PUBLIC_MAX_STUDENTS_PER_GROUP=8
+NEXT_PUBLIC_REQUIRED_STAFF_PER_30_STUDENTS=1
+NEXT_PUBLIC_REQUIRED_VOLUNTEERS_PER_10_STUDENTS=1
+NEXT_PUBLIC_ALWAYS_REQUIRE_ADMIN=true
