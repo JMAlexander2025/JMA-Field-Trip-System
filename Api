@@ -1,0 +1,187 @@
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  try {
+    const { to, subject, template, data } = req.body
+
+    if (!to || !subject) {
+      return res.status(400).json({ error: 'Missing required fields: to, subject' })
+    }
+
+    let htmlContent = ''
+    let textContent = ''
+
+    // Email templates
+    switch (template) {
+      case 'request_submitted':
+        htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">🚀 JMA Field Trip Request Submitted</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">One Mission, Many Places & Endless Possibilities</p>
+            </div>
+            
+            <div style="padding: 30px; background: #f8fafc;">
+              <h2 style="color: #1e293b; margin-bottom: 20px;">Hello ${data.staffName},</h2>
+              
+              <p style="color: #475569; line-height: 1.6; margin-bottom: 20px;">
+                Your field trip request has been successfully submitted and is now in the approval process.
+              </p>
+              
+              <div style="background: white; border-radius: 10px; padding: 20px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
+                <h3 style="color: #0ea5e9; margin: 0 0 15px 0;">Request Details</h3>
+                <p><strong>Request ID:</strong> ${data.tripId}</p>
+                <p><strong>Destination:</strong> ${data.tripLocation}</p>
+                <p><strong>Submitted:</strong> ${data.submissionDate}</p>
+                <p><strong>Current Status:</strong> Under Review</p>
+              </div>
+              
+              <h3 style="color: #1e293b; margin: 25px 0 15px 0;">What Happens Next?</h3>
+              <ol style="color: #475569; line-height: 1.8;">
+                <li><strong>Front Office Review</strong> - Calendar verification (48 hours)</li>
+                <li><strong>Principal Review</strong> - Educational approval (48 hours)</li>
+                <li><strong>Facilitator Review</strong> - Logistics coordination (72 hours)</li>
+                <li><strong>Final Approvals</strong> - Treasurer, Nurse, Cafeteria (24 hours each)</li>
+              </ol>
+              
+              <p style="color: #475569; line-height: 1.6; margin-top: 20px;">
+                You'll receive email updates at each stage of the approval process. You can also log back into the system anytime to check your request status.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL}" 
+                   style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                  Check Request Status
+                </a>
+              </div>
+            </div>
+            
+            <div style="background: #1e293b; color: #94a3b8; padding: 20px; text-align: center; font-size: 14px;">
+              <p style="margin: 0;">JMA Middle School Field Trip Management System</p>
+              <p style="margin: 5px 0 0 0;">If you have questions, contact your department facilitator or the main office.</p>
+            </div>
+          </div>
+        `
+        textContent = `
+JMA Field Trip Request Submitted - ${data.tripId}
+
+Hello ${data.staffName},
+
+Your field trip request to ${data.tripLocation} has been successfully submitted on ${data.submissionDate}.
+
+Request ID: ${data.tripId}
+
+Your request will go through our 7-stage approval process:
+1. Front Office Review (48 hours)
+2. Principal Review (48 hours) 
+3. Facilitator Review (72 hours)
+4. Treasurer Review (24 hours)
+5. Nurse Review (24 hours)
+6. Cafeteria Review (24 hours)
+7. Final Authorization
+
+You'll receive email updates at each stage. Check your status anytime at: ${process.env.NEXT_PUBLIC_APP_URL}
+
+JMA Middle School
+One Mission, Many Places & Endless Possibilities
+        `
+        break
+
+      case 'approval_notification':
+        htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #059669, #0ea5e9); color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">✅ Approval Update - ${data.tripId}</h1>
+            </div>
+            
+            <div style="padding: 30px; background: #f8fafc;">
+              <h2 style="color: #1e293b;">Hello ${data.staffName},</h2>
+              
+              <div style="background: #dcfce7; border-radius: 10px; padding: 20px; border-left: 4px solid #16a34a; margin: 20px 0;">
+                <h3 style="color: #16a34a; margin: 0 0 10px 0;">Stage ${data.stageNumber} Approved!</h3>
+                <p style="margin: 0;"><strong>${data.stageName}</strong> has approved your request.</p>
+                ${data.notes ? `<p style="margin: 10px 0 0 0; font-style: italic;">"${data.notes}"</p>` : ''}
+              </div>
+              
+              <p><strong>Next Step:</strong> ${data.nextStage || 'Final authorization pending'}</p>
+              
+              <div style="text-align: center; margin: 25px 0;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL}" 
+                   style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                  View Full Status
+                </a>
+              </div>
+            </div>
+          </div>
+        `
+        break
+
+      case 'daily_alert':
+        htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">⏰ Daily Field Trip Alert</h1>
+            </div>
+            
+            <div style="padding: 30px; background: #f8fafc;">
+              <h2 style="color: #1e293b;">Pending Field Trip Reviews</h2>
+              
+              <div style="background: #fef3c7; border-radius: 10px; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+                <p style="margin: 0;"><strong>${data.pendingCount}</strong> field trip requests require your attention.</p>
+              </div>
+              
+              <p>Please review and take action on pending requests in your queue.</p>
+              
+              <div style="text-align: center; margin: 25px 0;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/dashboard" 
+                   style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                  Review Requests
+                </a>
+              </div>
+            </div>
+          </div>
+        `
+        break
+
+      default:
+        // Generic template
+        htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">🚀 JMA Field Trip System</h1>
+            </div>
+            <div style="padding: 30px; background: #f8fafc;">
+              <h2 style="color: #1e293b;">${subject}</h2>
+              <div style="color: #475569; line-height: 1.6;">
+                ${data.content || 'No additional content provided.'}
+              </div>
+            </div>
+          </div>
+        `
+        textContent = `${subject}\n\n${data.content || 'No additional content provided.'}\n\nJMA Middle School Field Trip Management System`
+    }
+
+    const result = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'JMA Field Trips <noreply@resend.dev>',
+      to,
+      subject,
+      html: htmlContent,
+      text: textContent,
+    })
+
+    res.status(200).json({ success: true, messageId: result.id })
+  } catch (error) {
+    console.error('Email send error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send email',
+      details: error.message 
+    })
+  }
+}
