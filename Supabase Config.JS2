@@ -1,0 +1,309 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing Supabase environment variables')
+}
+
+export const supabase = createClient(supabaseUrl || '', supabaseKey || '')
+
+// Field Trip Request Management
+export const submitFieldTripRequest = async (requestData) => {
+  try {
+    // Generate unique trip ID
+    const year = new Date().getFullYear()
+    const timestamp = Date.now()
+    const tripId = `JMA-${year}-${timestamp.toString().slice(-6)}`
+    
+    const requestWithId = {
+      ...requestData,
+      trip_id: tripId,
+      status: 'submitted',
+      current_step: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+    
+    const { data, error } = await supabase
+      .from('staff_requests')
+      .insert([requestWithId])
+      .select()
+    
+    if (error) throw error
+    
+    // Create initial approval stages
+    const stages = [
+      { stage_number: 1, stage_name: 'Front Office Review', role: 'frontoffice' },
+      { stage_number: 2, stage_name: 'Principal Review', role: 'principal' },
+      { stage_number: 3, stage_name: 'Facilitator Review', role: 'facilitator' },
+      { stage_number: 4, stage_name: 'Treasurer Review', role: 'treasurer' },
+      { stage_number: 5, stage_name: 'Nurse Review', role: 'nurse' },
+      { stage_number: 6, stage_name: 'Cafeteria Review', role: 'cafeteria' },
+      { stage_number: 7, stage_name: 'Final Approval', role: 'admin' }
+    ]
+    
+    const stagePromises = stages.map(stage => 
+      supabase.from('approval_stages').insert([{
+        request_id: data[0].id,
+        ...stage,
+        status: stage.stage_number === 1 ? 'pending' : 'waiting'
+      }])
+    )
+    
+    await Promise.all(stagePromises)
+    
+    return { success: true, data: data[0], tripId }
+  } catch (error) {
+    console.error('Error submitting request:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const getFieldTripRequests = async (filters = {}) => {
+  try {
+    let query = supabase
+      .from('staff_requests')
+      .select(`
+        *,
+        approval_stages(*)
+      `)
+      .order('created_at', { ascending: false })
+    
+    if (filters.status) {
+      query = query.eq('status', filters.status)
+    }
+    
+    if (filters.staff_email) {
+      query = query.eq('staff_email', filters.staff_email)
+    }
+    
+    const { data, error } = await query
+    
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error fetching requests:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const updateRequestStatus = async (requestId, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from('staff_requests')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', requestId)
+      .select()
+    
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error updating request:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const updateApprovalStage = async (requestId, stageNumber, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from('approval_stages')
+      .update({
+        ...updates,
+        approved_at: updates.status === 'approved' ? new Date().toISOString() : null
+      })
+      .eq('request_id', requestId)
+      .eq('stage_number', stageNumber)
+      .select()
+    
+    if (error) throw error
+    
+    // If approved, activate next stage
+    if (updates.status === 'approved' && stageNumber < 7) {
+      await supabase
+        .from('approval_stages')
+        .update({ status: 'pending' })
+        .eq('request_id', requestId)
+        .eq('stage_number', stageNumber + 1)
+    }
+    
+    // Update main request current step
+    const newStep = updates.status === 'approved' ? stageNumber + 1 : stageNumber
+    const newStatus = stageNumber === 7 && updates.status === 'approved' ? 'approved' : 'pending'
+    
+    await updateRequestStatus(requestId, {
+      current_step: newStep,
+      status: newStatus
+    })
+    
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error updating approval stage:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Admin Notes Management
+export const addAdminNote = async (requestId, noteData) => {
+  try {
+    const { data, error } = await supabase
+      .from('admin_notes')
+      .insert([{
+        request_id: requestId,
+        note_type: noteData.type || 'comment',
+        content: noteData.content,
+        author: noteData.author,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+    
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error adding admin note:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const getAdminNotes = async (requestId) => {
+  try {
+    const { data, error } = await supabase
+      .from('admin_notes')
+      .select('*')
+      .eq('request_id', requestId)
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error fetching admin notes:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Reports and Analytics
+export const getReportData = async (reportType) => {
+  try {
+    let data = {}
+    
+    switch (reportType) {
+      case 'summary':
+        const { data: requests } = await getFieldTripRequests()
+        data = {
+          totalRequests: requests?.length || 0,
+          approvedRequests: requests?.filter(r => r.status === 'approved').length || 0,
+          pendingRequests: requests?.filter(r => r.status === 'pending').length || 0,
+          deniedRequests: requests?.filter(r => r.status === 'denied').length || 0,
+          requests: requests || []
+        }
+        break
+        
+      case 'financial':
+        const { data: finRequests } = await getFieldTripRequests({ status: 'approved' })
+        const totalCost = finRequests?.reduce((sum, req) => sum + (req.total_cost || 0), 0) || 0
+        data = {
+          totalCost,
+          averageCost: finRequests?.length ? totalCost / finRequests.length : 0,
+          requestsByType: finRequests?.reduce((acc, req) => {
+            acc[req.trip_type] = (acc[req.trip_type] || 0) + 1
+            return acc
+          }, {}) || {}
+        }
+        break
+        
+      default:
+        throw new Error(`Unknown report type: ${reportType}`)
+    }
+    
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error generating report:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// User Management
+export const getUserProfile = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const createUserProfile = async (profileData) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .insert([profileData])
+      .select()
+    
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error creating user profile:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Email notification helpers
+export const sendNotificationEmail = async (emailData) => {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailData),
+    })
+    
+    if (!response.ok) throw new Error('Failed to send email')
+    
+    const result = await response.json()
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Utility functions
+export const formatTripId = (id) => {
+  return id || 'JMA-XXXX-XXXX'
+}
+
+export const getStatusColor = (status) => {
+  const colors = {
+    submitted: 'bg-blue-100 text-blue-800',
+    pending: 'bg-yellow-100 text-yellow-800',
+    approved: 'bg-green-100 text-green-800',
+    denied: 'bg-red-100 text-red-800',
+    cancelled: 'bg-gray-100 text-gray-800'
+  }
+  return colors[status] || colors.pending
+}
+
+export const getStepName = (stepNumber) => {
+  const steps = {
+    1: 'Front Office Review',
+    2: 'Principal Review', 
+    3: 'Facilitator Review',
+    4: 'Treasurer Review',
+    5: 'Nurse Review',
+    6: 'Cafeteria Review',
+    7: 'Final Approval'
+  }
+  return steps[stepNumber] || 'Unknown Step'
+}
