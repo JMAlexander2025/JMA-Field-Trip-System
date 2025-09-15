@@ -1,0 +1,168 @@
+-- JMA Field Trip Management System Database Setup
+-- Run this script in your Supabase SQL Editor
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Staff requests table (main field trip requests)
+CREATE TABLE staff_requests (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  trip_id TEXT UNIQUE,
+  staff_name TEXT NOT NULL,
+  staff_email TEXT NOT NULL,
+  facilitator_name TEXT,
+  facilitator_email TEXT,
+  phone_number TEXT,
+  trip_type TEXT NOT NULL,
+  student_count INTEGER NOT NULL,
+  trip_location TEXT NOT NULL,
+  educational_value TEXT,
+  preferred_date_1 DATE,
+  preferred_date_2 DATE,
+  preferred_date_3 DATE,
+  bus_fee DECIMAL(10,2) DEFAULT 0,
+  fuel_fee DECIMAL(10,2) DEFAULT 0,
+  entrance_fee DECIMAL(10,2) DEFAULT 0,
+  activity_fee DECIMAL(10,2) DEFAULT 0,
+  lunch_fee DECIMAL(10,2) DEFAULT 0,
+  apparel_fee DECIMAL(10,2) DEFAULT 0,
+  other_fee DECIMAL(10,2) DEFAULT 0,
+  total_cost DECIMAL(10,2) DEFAULT 0,
+  status TEXT DEFAULT 'submitted' CHECK (status IN ('submitted', 'pending', 'approved', 'denied', 'cancelled')),
+  current_step INTEGER DEFAULT 1 CHECK (current_step >= 1 AND current_step <= 7),
+  submission_date DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Approval stages tracking
+CREATE TABLE approval_stages (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID REFERENCES staff_requests(id) ON DELETE CASCADE,
+  stage_number INTEGER NOT NULL CHECK (stage_number >= 1 AND stage_number <= 7),
+  stage_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'pending', 'approved', 'denied')),
+  approved_by TEXT,
+  approved_at TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(request_id, stage_number)
+);
+
+-- Admin notes system
+CREATE TABLE admin_notes (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID REFERENCES staff_requests(id) ON DELETE CASCADE,
+  note_type TEXT NOT NULL DEFAULT 'comment' CHECK (note_type IN ('comment', 'question', 'concern', 'modification', 'approval', 'denial')),
+  content TEXT NOT NULL,
+  author TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- User profiles for role-based access
+CREATE TABLE user_profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  role TEXT NOT NULL CHECK (role IN ('staff', 'frontoffice', 'principal', 'facilitator', 'treasurer', 'nurse', 'cafeteria', 'admin')),
+  department TEXT,
+  phone_number TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- System settings table
+CREATE TABLE system_settings (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  setting_key TEXT UNIQUE NOT NULL,
+  setting_value TEXT,
+  description TEXT,
+  updated_by TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email notifications log
+CREATE TABLE email_notifications (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID REFERENCES staff_requests(id) ON DELETE CASCADE,
+  recipient_email TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  template_name TEXT,
+  status TEXT DEFAULT 'sent' CHECK (status IN ('sent', 'failed', 'pending')),
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  error_message TEXT
+);
+
+-- Row Level Security (RLS) - Enable for all tables
+ALTER TABLE staff_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_notifications ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for staff_requests
+CREATE POLICY "Staff can view own requests" ON staff_requests
+  FOR SELECT USING (
+    auth.email() = staff_email OR
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'principal', 'frontoffice', 'facilitator', 'treasurer', 'nurse', 'cafeteria')
+    )
+  );
+
+CREATE POLICY "Staff can create requests" ON staff_requests
+  FOR INSERT WITH CHECK (auth.email() = staff_email);
+
+CREATE POLICY "Staff can update own requests" ON staff_requests
+  FOR UPDATE USING (
+    auth.email() = staff_email OR
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'principal', 'frontoffice', 'facilitator', 'treasurer', 'nurse', 'cafeteria')
+    )
+  );
+
+CREATE POLICY "Admins can manage all requests" ON staff_requests
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'principal', 'frontoffice', 'facilitator', 'treasurer', 'nurse', 'cafeteria')
+    )
+  );
+
+-- RLS Policies for approval_stages
+CREATE POLICY "Users can view relevant approval stages" ON approval_stages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM staff_requests sr
+      WHERE sr.id = request_id 
+      AND (
+        auth.email() = sr.staff_email OR
+        EXISTS (
+          SELECT 1 FROM user_profiles up
+          WHERE up.id = auth.uid() 
+          AND up.role IN ('admin', 'principal', 'frontoffice', 'facilitator', 'treasurer', 'nurse', 'cafeteria')
+        )
+      )
+    )
+  );
+
+CREATE POLICY "Authorized users can update approval stages" ON approval_stages
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'principal', 'frontoffice', 'facilitator', 'treasurer', 'nurse', 'cafeteria')
+    )
+  );
+
+-- RLS Policies for admin_notes
+CREATE POLICY "Users can view relevant admin notes" ON admin_notes
+  FOR SELECT USING (
+    EXISTS
