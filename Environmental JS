@@ -1,0 +1,21 @@
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Email Configuration (Resend)
+RESEND_API_KEY=your_resend_api_key
+
+# School Configuration
+NEXT_PUBLIC_SCHOOL_NAME="JMA Middle School"
+NEXT_PUBLIC_SCHOOL_DOMAIN="cms.k12.nc.us"
+NEXT_PUBLIC_PRINCIPAL_NAME="Principal Hager"
+
+# Development Configuration
+NODE_ENV=development
+
+# Optional: Authentication (if using Supabase Auth)
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Optional: External APIs
+GOOGLE_CALENDAR_API_KEY=your_google_calendar_api_key
+GOOGLE_CALENDAR_ID=your_school_calendar_id
